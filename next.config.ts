@@ -1,7 +1,9 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
-  /* config options here */
+  images: {
+    domains: ["www.libelnet.nl", "www.bassmit.dev"],
+  },
 };
 
 export default nextConfig;

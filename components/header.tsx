@@ -10,7 +10,7 @@ export function Header() {
       <div className="container mx-auto px-4 py-3 flex items-center justify-between max-w-screen-2xl">
         <div className="flex items-center gap-2">
           <Image
-            src="https://hebbkx1anhila5yf.public.blob.vercel-storage.com/libelnet-maasbree-logo-UF6mEMFmrRrVse7SPCduioy374sUwy.png"
+            src="https://www.libelnet.nl/templates/libelnet/images/libelnet-maasbree-logo.png"
             alt="LibelNet Logo"
             className="h-10 w-auto"
             width={40}
