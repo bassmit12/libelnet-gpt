@@ -3,17 +3,17 @@ import { NextResponse } from "next/server";
 import OpenAI from "openai";
 import { config } from "@/lib/config";
 import { limiter, APIError, errorHandler } from "@/lib/api-middleware";
-import { headers } from "next/headers";
 import { companyContext } from "@/lib/company-data";
+import { ChatMessage } from "@/types/chat";
 
 const openai = new OpenAI({
   apiKey: config.openai.apiKey,
   organization: config.openai.orgId,
 });
 
-async function createChatCompletion(messages: any[]) {
+async function createChatCompletion(messages: ChatMessage[]) {
   const response = await openai.chat.completions.create({
-    model: "gpt-4o",
+    model: "gpt-4",
     messages: [
       {
         role: "system",
@@ -40,14 +40,9 @@ Instructions:
 
 export async function POST(req: Request) {
   try {
-    // Get headers asynchronously
-    const headersList = await headers();
-    const forwardedFor = headersList.get("x-forwarded-for");
-    const ip = forwardedFor || "unknown";
-
     // Check rate limit
-    const remainingTokens = limiter.tryRemoveTokens(1);
-    if (remainingTokens < 0) {
+    const hasTokens = await limiter.removeTokens(1);
+    if (!hasTokens) {
       throw new APIError(429, "Rate limit exceeded. Please try again later.");
     }
 
