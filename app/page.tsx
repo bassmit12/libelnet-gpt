@@ -1,101 +1,139 @@
-import Image from "next/image";
+// app/page.tsx
+"use client";
+
+import { useState, useEffect, useCallback } from "react"; // Add useCallback
+import { Chat } from "@/components/chat";
+import { Header } from "@/components/header";
+import { Sidebar } from "@/components/sidebar";
+import { Conversation } from "@/types/conversation";
 
 export default function Home() {
-  return (
-    <div className="grid grid-rows-[20px_1fr_20px] items-center justify-items-center min-h-screen p-8 pb-20 gap-16 sm:p-20 font-[family-name:var(--font-geist-sans)]">
-      <main className="flex flex-col gap-8 row-start-2 items-center sm:items-start">
-        <Image
-          className="dark:invert"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={180}
-          height={38}
-          priority
-        />
-        <ol className="list-inside list-decimal text-sm text-center sm:text-left font-[family-name:var(--font-geist-mono)]">
-          <li className="mb-2">
-            Get started by editing{" "}
-            <code className="bg-black/[.05] dark:bg-white/[.06] px-1 py-0.5 rounded font-semibold">
-              app/page.tsx
-            </code>
-            .
-          </li>
-          <li>Save and see your changes instantly.</li>
-        </ol>
+  const [conversations, setConversations] = useState<Conversation[]>([]);
+  const [activeConversation, setActiveConversation] = useState<string | null>(
+    null,
+  );
 
-        <div className="flex gap-4 items-center flex-col sm:flex-row">
-          <a
-            className="rounded-full border border-solid border-transparent transition-colors flex items-center justify-center bg-foreground text-background gap-2 hover:bg-[#383838] dark:hover:bg-[#ccc] text-sm sm:text-base h-10 sm:h-12 px-4 sm:px-5"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <Image
-              className="dark:invert"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={20}
-              height={20}
-            />
-            Deploy now
-          </a>
-          <a
-            className="rounded-full border border-solid border-black/[.08] dark:border-white/[.145] transition-colors flex items-center justify-center hover:bg-[#f2f2f2] dark:hover:bg-[#1a1a1a] hover:border-transparent text-sm sm:text-base h-10 sm:h-12 px-4 sm:px-5 sm:min-w-44"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Read our docs
-          </a>
-        </div>
-      </main>
-      <footer className="row-start-3 flex gap-6 flex-wrap items-center justify-center">
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/file.svg"
-            alt="File icon"
-            width={16}
-            height={16}
-          />
-          Learn
-        </a>
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/window.svg"
-            alt="Window icon"
-            width={16}
-            height={16}
-          />
-          Examples
-        </a>
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://nextjs.org?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/globe.svg"
-            alt="Globe icon"
-            width={16}
-            height={16}
-          />
-          Go to nextjs.org →
-        </a>
-      </footer>
+  // Load conversations from localStorage on initial render
+  useEffect(() => {
+    const savedConversations = localStorage.getItem("conversations");
+    if (savedConversations) {
+      const parsed = JSON.parse(savedConversations, (key, value) => {
+        if (key === "date") return new Date(value);
+        return value;
+      });
+      setConversations(parsed);
+      if (parsed.length > 0) {
+        setActiveConversation(parsed[0].id);
+      }
+    }
+  }, []);
+
+  // Save conversations to localStorage whenever they change
+  useEffect(() => {
+    if (conversations.length > 0) {
+      localStorage.setItem("conversations", JSON.stringify(conversations));
+    }
+  }, [conversations]);
+
+  const handleNewConversation = useCallback(() => {
+    const newId = Date.now().toString();
+    const newConversation: Conversation = {
+      id: newId,
+      title: "New Conversation",
+      date: new Date(),
+      preview: "Start a new conversation with LibelNet AI",
+      messages: [
+        {
+          id: "welcome-message",
+          role: "assistant",
+          content:
+            "Hello! I'm the LibelNet AI assistant. How can I help you today?",
+        },
+      ],
+    };
+
+    setConversations((prev) => [newConversation, ...prev]);
+    setActiveConversation(newId);
+  }, []);
+
+  const updateConversation = useCallback(
+    (conversationId: string, updates: Partial<Conversation>) => {
+      setConversations((prev) =>
+        prev.map((conv) =>
+          conv.id === conversationId
+            ? {
+                ...conv,
+                ...updates,
+                messages: updates.messages || conv.messages,
+              }
+            : conv,
+        ),
+      );
+    },
+    [],
+  );
+
+  const deleteConversation = useCallback(
+    (conversationId: string) => {
+      setConversations((prev) => {
+        const newConversations = prev.filter(
+          (conv) => conv.id !== conversationId,
+        );
+        if (activeConversation === conversationId) {
+          setActiveConversation(newConversations[0]?.id || null);
+        }
+        return newConversations;
+      });
+    },
+    [activeConversation],
+  );
+
+  return (
+    <div className="flex flex-col min-h-screen h-screen">
+      <Header />
+
+      <div className="flex flex-1 overflow-hidden">
+        <Sidebar
+          conversations={conversations}
+          activeConversation={activeConversation}
+          onSelectConversation={setActiveConversation}
+          onNewConversation={handleNewConversation}
+          onDeleteConversation={deleteConversation}
+        />
+
+        <main className="flex-1 flex flex-col overflow-hidden bg-gradient-to-r from-libelnet-blue/5 via-libelnet-orange/5 to-libelnet-red/5 animate-gradient-x dark:from-gray-900 dark:via-gray-900 dark:to-gray-900">
+          <div className="container mx-auto px-4 py-6 max-w-screen-2xl flex-shrink-0">
+            <div className="max-w-none mx-auto">
+              <div className="text-center mb-6">
+                <h1 className="text-2xl font-bold mb-2">
+                  <span className="text-libelnet-gray dark:text-gray-400">
+                    Libel
+                  </span>
+                  <span className="text-libelnet-blue">n</span>
+                  <span className="text-libelnet-orange">e</span>
+                  <span className="text-libelnet-red">t</span>
+                  <span className="dark:text-white"> AI</span>
+                </h1>
+                <p className="text-muted-foreground dark:text-gray-400 text-sm">
+                  Ask any question about our company, policies, or procedures
+                </p>
+              </div>
+            </div>
+          </div>
+
+          <div className="flex-1 px-4 pb-4 overflow-hidden">
+            <div className="h-full max-w-none mx-auto lg:max-w-[80%] xl:max-w-[70%] 2xl:max-w-[60%]">
+              <div className="h-full bg-white dark:bg-gray-900 rounded-xl shadow-2xl overflow-hidden border border-gray-100 dark:border-gray-700">
+                <Chat
+                  conversationId={activeConversation}
+                  onUpdateConversation={updateConversation}
+                  userProfilePic="https://www.bassmit.dev/_next/image?url=%2Fassets%2FBas_Smit_Enhanced.png&w=256&q=75"
+                />
+              </div>
+            </div>
+          </div>
+        </main>
+      </div>
     </div>
   );
 }
