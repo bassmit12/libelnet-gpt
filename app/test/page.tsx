@@ -1,19 +1,19 @@
 // app/test/page.tsx
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 
 interface TestResult {
   status: "idle" | "loading" | "success" | "error";
   message?: string;
-  details?: Record<string, unknown>;
+  details?: APIResponse; // Changed this to specifically accept APIResponse
 }
 
 interface APIResponse {
   status: string;
-  message: string;
+  message?: string;
   config?: {
     apiKeyConfigured: boolean;
     orgIdConfigured: boolean;
@@ -30,6 +30,7 @@ interface APIResponse {
   };
   error?: string;
   details?: Record<string, unknown>;
+  [key: string]: unknown; // Add index signature to make it compatible with Record<string, unknown>
 }
 
 export default function TestPage() {
@@ -67,18 +68,23 @@ export default function TestPage() {
         status: "error",
         message:
           error instanceof Error ? error.message : "Unknown error occurred",
-        details:
-          error instanceof Error
-            ? {
-                name: error.name,
-                message: error.message,
-                stack: error.stack,
-              }
-            : { error },
+        details: {
+          status: "error",
+          error: error instanceof Error ? error.message : "Unknown error",
+          details:
+            error instanceof Error
+              ? {
+                  name: error.name,
+                  message: error.message,
+                  stack: error.stack,
+                }
+              : { error },
+        },
       });
     }
   };
 
+  // Rest of the component remains the same
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-gray-900 py-12 px-4 sm:px-6 lg:px-8">
       <div className="max-w-3xl mx-auto">
