@@ -6,18 +6,26 @@ import { limiter, APIError, errorHandler } from "@/lib/api-middleware";
 import { companyContext } from "@/lib/company-data";
 import { ChatMessage } from "@/types/chat";
 
-const openai = new OpenAI({
-  apiKey: config.openai.apiKey,
-  organization: config.openai.orgId,
-});
+// Initialize OpenAI client
+let openai: OpenAI;
+try {
+  openai = new OpenAI({
+    apiKey: config.openai.apiKey,
+    organization: config.openai.orgId,
+  });
+} catch (error) {
+  console.error("Failed to initialize OpenAI client:", error);
+  throw new Error("OpenAI client initialization failed");
+}
 
 async function createChatCompletion(messages: ChatMessage[]) {
-  const response = await openai.chat.completions.create({
-    model: "gpt-4",
-    messages: [
-      {
-        role: "system",
-        content: `You are LibelNet's AI assistant. Use this context for accurate responses:
+  try {
+    const response = await openai.chat.completions.create({
+      model: "gpt-4",
+      messages: [
+        {
+          role: "system",
+          content: `You are LibelNet's AI assistant. Use this context for accurate responses:
 
 ${companyContext}
 
@@ -27,33 +35,73 @@ Instructions:
 - If information isn't in the context, acknowledge that you don't have that specific information
 - Always use the correct location details from the context
 - Maintain a helpful and professional tone`,
-      },
-      ...messages,
-    ],
-    max_tokens: config.openai.maxTokens,
-    temperature: 0.7,
-    stream: true,
-  });
+        },
+        ...messages,
+      ],
+      max_tokens: config.openai.maxTokens,
+      temperature: 0.7,
+      stream: true,
+    });
 
-  return response;
+    return response;
+  } catch (error) {
+    console.error("OpenAI API error:", error);
+    throw new APIError(500, "Failed to generate response from OpenAI");
+  }
 }
 
 export async function POST(req: Request) {
   try {
+    // Validate OpenAI API key
+    if (!config.openai.apiKey) {
+      throw new APIError(500, "OpenAI API key is not configured");
+    }
+
+    // Validate request method
+    if (req.method !== "POST") {
+      throw new APIError(405, "Method not allowed");
+    }
+
     // Check rate limit
     const hasTokens = await limiter.removeTokens(1);
     if (!hasTokens) {
       throw new APIError(429, "Rate limit exceeded. Please try again later.");
     }
 
-    const { messages } = await req.json();
+    // Parse and validate request body
+    let messages: ChatMessage[];
+    try {
+      const body = await req.json();
+      if (!body.messages || !Array.isArray(body.messages)) {
+        throw new APIError(
+          400,
+          "Invalid request body: messages array is required",
+        );
+      }
+      messages = body.messages;
 
-    if (!messages || !Array.isArray(messages)) {
-      throw new APIError(400, "Invalid input format");
+      // Validate message format
+      for (const message of messages) {
+        if (
+          !message.role ||
+          !message.content ||
+          typeof message.content !== "string"
+        ) {
+          throw new APIError(400, "Invalid message format");
+        }
+        if (!["user", "assistant", "system"].includes(message.role)) {
+          throw new APIError(400, "Invalid message role");
+        }
+      }
+    } catch (error) {
+      if (error instanceof APIError) throw error;
+      throw new APIError(400, "Invalid JSON payload");
     }
 
+    // Generate response
     const response = await createChatCompletion(messages);
 
+    // Set up streaming response
     const encoder = new TextEncoder();
     const stream = new ReadableStream({
       async start(controller) {
@@ -68,11 +116,11 @@ export async function POST(req: Request) {
         } catch (error) {
           console.error("Stream error:", error);
           controller.error(error);
-          controller.close();
         }
       },
     });
 
+    // Return streaming response
     return new NextResponse(stream, {
       headers: {
         "Content-Type": "text/event-stream",
@@ -83,6 +131,41 @@ export async function POST(req: Request) {
   } catch (error) {
     console.error("API error:", error);
     const { statusCode, message } = errorHandler(error);
-    return NextResponse.json({ error: message }, { status: statusCode });
+
+    // Log additional error details in development
+    if (process.env.NODE_ENV === "development") {
+      console.error("Detailed error:", {
+        error,
+        statusCode,
+        message,
+        stack: error instanceof Error ? error.stack : undefined,
+      });
+    }
+
+    return NextResponse.json(
+      {
+        error: message,
+        timestamp: new Date().toISOString(),
+        requestId: crypto.randomUUID(),
+      },
+      {
+        status: statusCode,
+        headers: {
+          "Content-Type": "application/json",
+        },
+      },
+    );
   }
+}
+
+// Add OPTIONS handler for CORS if needed
+export async function OPTIONS() {
+  return new NextResponse(null, {
+    status: 204,
+    headers: {
+      "Access-Control-Allow-Origin": "*",
+      "Access-Control-Allow-Methods": "POST, OPTIONS",
+      "Access-Control-Allow-Headers": "Content-Type, Authorization",
+    },
+  });
 }

@@ -1,11 +1,4 @@
 // lib/config.ts
-
-// lib/config.ts
-import dotenv from "dotenv";
-import path from "path";
-
-// Load environment variables from .env.local
-dotenv.config({ path: path.resolve(process.cwd(), ".env") });
 interface OpenAIConfig {
   apiKey: string;
   orgId?: string;
@@ -40,22 +33,20 @@ const config: Config = {
   env: process.env.NODE_ENV || "development",
 
   openai: {
-    apiKey: process.env.OPENAI_API_KEY!,
+    apiKey: process.env.OPENAI_API_KEY || "",
     orgId: process.env.OPENAI_ORG_ID,
     maxTokens: 2000,
     temperature: 0.7,
   },
 
   rateLimit: {
-    windowMs: 15 * 60 * 1000, // 15 minutes
-    max: process.env.NODE_ENV === "production" ? 100 : 1000, // Different limits for prod/dev
+    windowMs: 15 * 60 * 1000,
+    max: process.env.NODE_ENV === "production" ? 100 : 1000,
   },
 
   security: {
-    allowedOrigins: process.env.ALLOWED_ORIGINS?.split(",") || [
-      "http://localhost:3000",
-    ],
-    maxRequestSize: 1024 * 1024, // 1MB
+    allowedOrigins: process.env.ALLOWED_ORIGINS?.split(",") || ["*"],
+    maxRequestSize: 1024 * 1024,
   },
 
   logging: {
@@ -67,7 +58,7 @@ const config: Config = {
 
 // Validation
 if (!config.openai.apiKey) {
-  throw new Error("OPENAI_API_KEY is required");
+  console.warn("Warning: OPENAI_API_KEY is not set");
 }
 
 // Freeze the config object to prevent modifications

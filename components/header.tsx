@@ -13,8 +13,8 @@ export function Header() {
             src="https://www.libelnet.nl/templates/libelnet/images/libelnet-maasbree-logo.png"
             alt="LibelNet Logo"
             className="h-10 w-auto"
-            width={40}
-            height={40}
+            width={240}
+            height={240}
           />
         </div>
 
